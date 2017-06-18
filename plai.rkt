@@ -12,6 +12,9 @@
   [plusC (l : ArithC) (r : ArithC)]
   [multC (l : ArithC) (r : ArithC)])
 
+(define-type Value
+  [numV (n : number)])
+
 
 ;;;;; Parser ;;;;;
 
@@ -41,8 +44,14 @@
 
 ;;;;; Interpreter ;;;;;
 
-(define (interp (exp : ArithC)) : number
+(define (interp (exp : ArithC)) : Value
   (type-case ArithC exp
-    [numC (n) n]
-    [plusC (l r) (+ (interp l) (interp r))]
-    [multC (l r) (* (interp l) (interp r))]))
+    [numC (n) (numV n)]
+    [plusC (l r) (num-binop + (interp l) (interp r))]
+    [multC (l r) (num-binop * (interp l) (interp r))]))
+
+(define (num-binop (op : (number number -> number)) (l : Value) (r : Value)) : Value
+  (cond
+    [(and (numV? l) (numV? r))
+     (numV (op (numV-n l) (numV-n r)))]
+    [else (error 'num-binop "one argument not a number")]))
