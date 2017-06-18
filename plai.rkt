@@ -1,13 +1,6 @@
 #lang plai-typed
 (require plai-typed/s-exp-match)
 
-(define-type ArithS
-  [boolS (b : boolean)]
-  [numS (n : number)]
-  [plusS (l : ArithS) (r : ArithS)]
-  [minusS (l : ArithS) (r : ArithS)]
-  [multS (l : ArithS) (r : ArithS)])
-
 (define-type ArithC
   [boolC (b : boolean)]
   [numC (n : number)]
@@ -21,32 +14,19 @@
 
 ;;;;; Parser ;;;;;
 
-(define (parse (s : s-expression)) : ArithS
+(define (parse (s : s-expression)) : ArithC
   (cond
-    [(s-exp-match? '#t s) (boolS #t)]
-    [(s-exp-match? '#f s) (boolS #f)]
-    [(s-exp-match? `NUMBER s) (numS (s-exp->number s))]
+    [(s-exp-match? '#t s) (boolC #t)]
+    [(s-exp-match? '#f s) (boolC #f)]
+    [(s-exp-match? `NUMBER s) (numC (s-exp->number s))]
     [(s-exp-match? '{+ ANY ANY} s)
-     (plusS (parse (second (s-exp->list s)))
+     (plusC (parse (second (s-exp->list s)))
             (parse (third (s-exp->list s))))]
-    [(s-exp-match? '{- ANY ANY} s)
-     (minusS (parse (second (s-exp->list s)))
-             (parse (third (s-exp->list s))))]
     [(s-exp-match? '{* ANY ANY} s)
-     (multS (parse (second (s-exp->list s)))
+     (multC (parse (second (s-exp->list s)))
             (parse (third (s-exp->list s))))]
     [else (error 'parse "invalid input")]))
 
-
-;;;;; Desugarer ;;;;;
-
-(define (desugar (exp : ArithS)) : ArithC
-  (type-case ArithS exp
-    [boolS (b) (boolC b)]
-    [numS (n) (numC n)]
-    [plusS (l r) (plusC (desugar l) (desugar r))]
-    [multS (l r) (multC (desugar l) (desugar r))]
-    [minusS (l r) (plusC (desugar l) (multC (numC -1) (desugar r)))]))
 
 ;;;;; Interpreter ;;;;;
 
