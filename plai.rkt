@@ -2,24 +2,29 @@
 (require plai-typed/s-exp-match)
 
 (define-type ArithS
+  [boolS (b : boolean)]
   [numS (n : number)]
   [plusS (l : ArithS) (r : ArithS)]
   [minusS (l : ArithS) (r : ArithS)]
   [multS (l : ArithS) (r : ArithS)])
 
 (define-type ArithC
+  [boolC (b : boolean)]
   [numC (n : number)]
   [plusC (l : ArithC) (r : ArithC)]
   [multC (l : ArithC) (r : ArithC)])
 
 (define-type Value
-  [numV (n : number)])
+  [numV (n : number)]
+  [boolV (b : boolean)])
 
 
 ;;;;; Parser ;;;;;
 
 (define (parse (s : s-expression)) : ArithS
   (cond
+    [(s-exp-match? '#t s) (boolS #t)]
+    [(s-exp-match? '#f s) (boolS #f)]
     [(s-exp-match? `NUMBER s) (numS (s-exp->number s))]
     [(s-exp-match? '{+ ANY ANY} s)
      (plusS (parse (second (s-exp->list s)))
@@ -37,6 +42,7 @@
 
 (define (desugar (exp : ArithS)) : ArithC
   (type-case ArithS exp
+    [boolS (b) (boolC b)]
     [numS (n) (numC n)]
     [plusS (l r) (plusC (desugar l) (desugar r))]
     [multS (l r) (multC (desugar l) (desugar r))]
@@ -46,6 +52,7 @@
 
 (define (interp (exp : ArithC)) : Value
   (type-case ArithC exp
+    [boolC (b) (boolV b)]
     [numC (n) (numV n)]
     [plusC (l r) (num-binop + (interp l) (interp r))]
     [multC (l r) (num-binop * (interp l) (interp r))]))
