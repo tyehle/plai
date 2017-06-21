@@ -18,6 +18,13 @@
   [numV (n : number)]
   [boolV (b : boolean)])
 
+(define-type Binding
+  [bind (name : symbol) (val : Value)])
+
+(define-type-alias Env (listof Binding))
+(define mt-env empty)
+(define extend-env cons)
+
 
 ;;;;; Parser ;;;;;
 
@@ -48,25 +55,34 @@
 
 ;;;;; Interpreter ;;;;;
 
-(define (interp (exp : ExprC) (fds : (listof DefC))) : Value
+(define (interp (exp : ExprC) (env : Env) (fds : (listof DefC))) : Value
   (type-case ExprC exp
     [boolC (b) (boolV b)]
     [numC (n) (numV n)]
-    [idC (s) (error 'interp "unbound identifier")]
-    [plusC (l r) (num-binop + (interp l fds) (interp r fds))]
-    [multC (l r) (num-binop * (interp l fds) (interp r fds))]
-    [zeroC (n) (let ([nv (interp n fds)])
+    [idC (s) (lookup s env)]
+    [plusC (l r) (num-binop + (interp l env fds) (interp r env fds))]
+    [multC (l r) (num-binop * (interp l env fds) (interp r env fds))]
+    [zeroC (n) (let ([nv (interp n env fds)])
                  (if (numV? nv)
                      (boolV (= 0 (numV-n nv)))
                      (error 'interp "not a number")))]
     [ifC (c t f)
-         (let ([ci (interp c fds)])
+         (let ([ci (interp c env fds)])
            (cond
-             [(boolV? ci) (if (boolV-b ci) (interp t fds) (interp f fds))]
+             [(boolV? ci) (if (boolV-b ci) (interp t env fds) (interp f env fds))]
              [else (error 'interp "can only test booleans")]))]
     [appC (name arg)
-          (let ([fun (lookup name fds)])
-            (interp (subst arg (funDefC-arg fun) (funDefC-body fun)) fds))]))
+          (type-case DefC (lookup-def name fds)
+            [funDefC (_ arg-name body)
+                     (interp body
+                             (extend-env (bind arg-name (interp arg env fds)) mt-env)
+                             fds)])]))
+
+(define (lookup (name : symbol) (env : Env)) : Value
+  (cond
+    [(empty? env) (error 'lookup "name not found")]
+    [(symbol=? name (bind-name (first env))) (bind-val (first env))]
+    [else (lookup name (rest env))]))
 
 (define (subst (what : ExprC) (for : symbol) (in : ExprC)) : ExprC
   (type-case ExprC in
@@ -89,8 +105,8 @@
      (numV (op (numV-n l) (numV-n r)))]
     [else (error 'num-binop "one argument not a number")]))
 
-(define (lookup (s : symbol) (fds : (listof DefC))) : DefC
+(define (lookup-def (s : symbol) (fds : (listof DefC))) : DefC
   (cond
-    [(empty? fds) (error 'lookup "name not found")]
+    [(empty? fds) (error 'lookup-def "name not found")]
     [(symbol=? s (funDefC-name (first fds))) (first fds)]
-    [else (lookup s (rest fds))]))
+    [else (lookup-def s (rest fds))]))
