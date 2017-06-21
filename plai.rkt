@@ -10,12 +10,12 @@
   [zeroC (n : ExprC)]
   [ifC (c : ExprC) (t : ExprC) (f : ExprC)]
   [appC (fun : ExprC) (arg : ExprC)]
-  [funC (name : symbol) (arg : symbol) (body : ExprC)])
+  [lamC (arg : symbol) (body : ExprC)])
 
 (define-type Value
   [numV (n : number)]
   [boolV (b : boolean)]
-  [funV (name : symbol) (arg : symbol) (body : ExprC)])
+  [closV (arg : symbol) (body : ExprC) (env : Env)])
 
 (define-type Binding
   [bind (name : symbol) (val : Value)])
@@ -44,9 +44,8 @@
      (ifC (parse (second (s-exp->list s)))
           (parse (third (s-exp->list s)))
           (parse (fourth (s-exp->list s))))]
-    [(s-exp-match? '{def {SYMBOL SYMBOL} ANY} s)
-     (funC (s-exp->symbol (first (s-exp->list (second (s-exp->list s)))))
-           (s-exp->symbol (second (s-exp->list (second (s-exp->list s)))))
+    [(s-exp-match? '{lambda {SYMBOL} ANY} s)
+     (lamC (s-exp->symbol (first (s-exp->list (second (s-exp->list s)))))
            (parse (third (s-exp->list s))))]
     [(s-exp-match? '{ANY ANY} s)
      (appC (parse (first (s-exp->list s)))
@@ -66,9 +65,9 @@
     [plusC (l r) (num-binop + (interp l env) (interp r env))]
     [multC (l r) (num-binop * (interp l env) (interp r env))]
     [zeroC (ne) (let ([nv (interp ne env)])
-                 (type-case Value nv
-                   [numV (n) (boolV (= 0 n))]
-                   [else (error 'interp "not a number")]))]
+                  (type-case Value nv
+                    [numV (n) (boolV (= 0 n))]
+                    [else (error 'interp "not a number")]))]
     [ifC (c t f)
          (let ([ci (interp c env)])
            (cond
@@ -76,12 +75,12 @@
              [else (error 'interp "can only test booleans")]))]
     [appC (fun arg)
           (type-case Value (interp fun env)
-            [funC (_ arg-name body)
-                     (interp body
-                             (extend-env (bind arg-name (interp arg env)) mt-env))]
+            [closV (arg-name body clos-env)
+                   (interp body
+                           (extend-env (bind arg-name (interp arg env)) clos-env))]
             [else (error 'inter "not a function")])]
-    [funC (name arg body)
-          (funV name arg body)]))
+    [lamC (arg body)
+          (closV arg body env)]))
 
 (define (lookup (name : symbol) (env : Env)) : Value
   (cond
