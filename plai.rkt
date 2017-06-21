@@ -62,10 +62,10 @@
     [idC (s) (lookup s env)]
     [plusC (l r) (num-binop + (interp l env fds) (interp r env fds))]
     [multC (l r) (num-binop * (interp l env fds) (interp r env fds))]
-    [zeroC (n) (let ([nv (interp n env fds)])
-                 (if (numV? nv)
-                     (boolV (= 0 (numV-n nv)))
-                     (error 'interp "not a number")))]
+    [zeroC (ne) (let ([nv (interp ne env fds)])
+                 (type-case Value nv
+                   [numV (n) (boolV (= 0 n))]
+                   [else (error 'interp "not a number")]))]
     [ifC (c t f)
          (let ([ci (interp c env fds)])
            (cond
