@@ -9,18 +9,12 @@
   [multC (l : ExprC) (r : ExprC)]
   [zeroC (n : ExprC)]
   [ifC (c : ExprC) (t : ExprC) (f : ExprC)]
-  [consC (head : ExprC) (tail : ExprC)]
-  [emptyC]
-  [headC (l : ExprC)]
-  [tailC (l : ExprC)]
   [appC (fun : ExprC) (arg : ExprC)]
   [lamC (arg : symbol) (body : ExprC)])
 
 (define-type Value
   [numV (n : number)]
   [boolV (b : boolean)]
-  [consV (h : Value) (t : Value)]
-  [emptyV]
   [closV (arg : symbol) (body : ExprC) (env : Env)])
 
 (define-type Binding
@@ -52,15 +46,6 @@
      (ifC (parse (second (s-exp->list s)))
           (parse (third (s-exp->list s)))
           (parse (fourth (s-exp->list s))))]
-    [(s-exp-match? '{cons ANY ANY} s)
-     (consC (parse (second (s-exp->list s)))
-            (parse (third (s-exp->list s))))]
-    [(s-exp-match? `empty s)
-     (emptyC)]
-    [(s-exp-match? '{head ANY} s)
-     (headC (parse (second (s-exp->list s))))]
-    [(s-exp-match? '{tail ANY} s)
-     (tailC (parse (second (s-exp->list s))))]
     [(s-exp-match? '{lambda {SYMBOL} ANY} s)
      (lamC (s-exp->symbol (first (s-exp->list (second (s-exp->list s)))))
            (parse (third (s-exp->list s))))]
@@ -90,18 +75,6 @@
            (cond
              [(boolV? ci) (if (boolV-b ci) (interp t env) (interp f env))]
              [else (error 'interp "can only test booleans")]))]
-    [consC (h t)
-           (consV (interp h env) (interp t env))]
-    [emptyC ()
-            (emptyV)]
-    [headC (l)
-           (type-case Value (interp l env)
-             [consV (h t) h]
-             [else (error 'interp "not a cons")])]
-    [tailC (l)
-           (type-case Value (interp l env)
-             [consV (h t) t]
-             [else (error 'interp "not a cons")])]
     [appC (fun arg)
           (type-case Value (interp fun env)
             [closV (arg-name body clos-env)
