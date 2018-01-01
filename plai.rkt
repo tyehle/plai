@@ -11,16 +11,14 @@
   [ifC (c : ExprC) (t : ExprC) (f : ExprC)]
   [appC (fun : ExprC) (arg : ExprC)]
   [lamC (arg : symbol) (body : ExprC)]
-  [boxC (arg : ExprC)]
-  [unboxC (arg : ExprC)]
-  [setboxC (b : ExprC) (v : ExprC)]
+  [setC (var : symbol) (val : ExprC)]
   [seqC (b1 : ExprC) (b2 : ExprC)])
 
 (define-type Value
+  [unitV]
   [numV (n : number)]
   [boolV (b : boolean)]
-  [closV (arg : symbol) (body : ExprC) (env : Env)]
-  [boxV (loc : Location)])
+  [closV (arg : symbol) (body : ExprC) (env : Env)])
 
 (define-type-alias Location number)
 
@@ -70,13 +68,9 @@
      (ifC (parse (second (s-exp->list s)))
           (parse (third (s-exp->list s)))
           (parse (fourth (s-exp->list s))))]
-    [(s-exp-match? '{box ANY} s)
-     (boxC (parse (second (s-exp->list s))))]
-    [(s-exp-match? '{unbox ANY} s)
-     (unboxC (parse (second (s-exp->list s))))]
-    [(s-exp-match? '{set-box! ANY ANY} s)
-     (setboxC (parse (second (s-exp->list s)))
-              (parse (third (s-exp->list s))))]
+    [(s-exp-match? '{set! SYMBOL ANY} s)
+     (setC (s-exp->symbol (second (s-exp->list s)))
+           (parse (third (s-exp->list s))))]
     [(s-exp-match? '{begin ANY ANY} s)
      (seqC (parse (second (s-exp->list s)))
            (parse (third (s-exp->list s))))]
@@ -132,28 +126,10 @@
                    [else (error 'interp "not a function")])])]
     [lamC (arg body)
           (v*s (closV arg body env) sto)]
-    [boxC (arg)
-          (type-case Result (interp arg env sto)
-            [v*s (arg-val arg-sto)
-                 (let ([where (new-loc)])
-                   (v*s (boxV where) (override-store (cell where arg-val) arg-sto)))])]
-    [unboxC (arg)
-            (type-case Result (interp arg env sto)
-              [v*s (arg-val arg-sto)
-                   (type-case Value arg-val
-                     [boxV (box-val) (v*s (fetch box-val arg-sto) arg-sto)]
-                     [else (error 'interp "not a box")])])]
-    [setboxC (box value)
-             (type-case Result (interp box env sto)
-               [v*s (box-val box-sto)
-                    (type-case Result (interp value env box-sto)
-                      [v*s (value-val value-sto)
-                           (type-case Value box-val
-                             [boxV (where)
-                                   (v*s value-val
-                                        (override-store (cell where value-val)
-                                                        value-sto))]
-                             [else (error 'interp "not a box")])])])]
+    [setC (var val)
+          (type-case Result (interp val env sto)
+            [v*s (val-val val-sto)
+                 (v*s (unitV) (override-store (cell (lookup var env) val-val) val-sto))])]
     [seqC (b1 b2)
           (type-case Result (interp b1 env sto)
             [v*s (b1-val b1-sto)
